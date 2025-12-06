@@ -92,16 +92,28 @@ func (h *Hub) SendToUsers(userIDs []int, message interface{}) error {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
+	sentCount := 0
+	notConnectedCount := 0
+
 	for _, userID := range userIDs {
 		if client, ok := h.clients[userID]; ok {
 			select {
 			case client.send <- data:
+				sentCount++
+				log.Printf("Sent message to connected user %d", userID)
 			default:
+				log.Printf("Failed to send to user %d (channel full), closing connection", userID)
 				close(client.send)
 				delete(h.clients, userID)
 			}
+		} else {
+			notConnectedCount++
+			log.Printf("User %d is not connected to WebSocket", userID)
 		}
 	}
+
+	log.Printf("Broadcast summary: sent to %d users, %d users not connected (total: %d)", 
+		sentCount, notConnectedCount, len(userIDs))
 
 	return nil
 }

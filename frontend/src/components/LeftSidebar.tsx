@@ -1,15 +1,25 @@
 import { useState } from 'react'
 import './LeftSidebar.css'
 
-type NavItem = 'chats' | 'status' | 'communities' | 'calls' | 'settings'
+type NavItem = 'chats' | 'status' | 'communities' | 'calls' | 'settings' | 'install'
 
 interface LeftSidebarProps {
   activeItem?: NavItem
   onItemClick?: (item: NavItem) => void
   hideOnMobile?: boolean
+  onInstallClick?: () => void
+  isInstallable?: boolean
+  isInstalled?: boolean
 }
 
-export default function LeftSidebar({ activeItem = 'chats', onItemClick, hideOnMobile = false }: LeftSidebarProps) {
+export default function LeftSidebar({ 
+  activeItem = 'chats', 
+  onItemClick, 
+  hideOnMobile = false,
+  onInstallClick,
+  isInstallable = false,
+  isInstalled = false
+}: LeftSidebarProps) {
   const [statusBadge, setStatusBadge] = useState(1) // Example: 1 unread status
 
   const navItems: { id: NavItem; icon: string; label: string; badge?: number }[] = [
@@ -18,6 +28,7 @@ export default function LeftSidebar({ activeItem = 'chats', onItemClick, hideOnM
     { id: 'communities', icon: '👥', label: 'Communities' },
     { id: 'calls', icon: '📞', label: 'Calls' },
     { id: 'settings', icon: '⚙️', label: 'Settings' },
+    { id: 'install', icon: '📱', label: isInstalled ? 'Installed' : 'Install App' },
   ]
 
   return (
@@ -25,9 +36,16 @@ export default function LeftSidebar({ activeItem = 'chats', onItemClick, hideOnM
       {navItems.map((item) => (
         <button
           key={item.id}
-          className={`left-sidebar-item ${activeItem === item.id ? 'active' : ''}`}
-          onClick={() => onItemClick?.(item.id)}
+          className={`left-sidebar-item ${activeItem === item.id ? 'active' : ''} ${item.id === 'install' && !isInstallable && !isInstalled ? 'disabled' : ''}`}
+          onClick={() => {
+            if (item.id === 'install') {
+              onInstallClick?.()
+            } else {
+              onItemClick?.(item.id)
+            }
+          }}
           title={item.label}
+          disabled={item.id === 'install' && (!isInstallable && !isInstalled)}
         >
           <div className="left-sidebar-icon">
             {item.id === 'status' ? (
@@ -78,6 +96,20 @@ export default function LeftSidebar({ activeItem = 'chats', onItemClick, hideOnM
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                />
+              </svg>
+            ) : item.id === 'install' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M17 2H7C5.9 2 5 2.9 5 4V20C5 21.1 5.9 22 7 22H17C18.1 22 19 21.1 19 20V4C19 2.9 18.1 2 17 2ZM17 20H7V4H17V20Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 18C12.55 18 13 17.55 13 17C13 16.45 12.55 16 12 16C11.45 16 11 16.45 11 17C11 17.55 11.45 18 12 18Z"
+                  fill="currentColor"
                 />
               </svg>
             ) : (

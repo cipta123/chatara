@@ -186,6 +186,11 @@ func (s *ConversationService) GetConversation(conversationID, userID int) (*mode
 	return convWithParticipant, nil
 }
 
+// GetParticipantIDs gets all participant IDs for a conversation (for broadcasting)
+func (s *ConversationService) GetParticipantIDs(conversationID int) ([]int, error) {
+	return s.convRepo.GetParticipants(conversationID)
+}
+
 func (s *ConversationService) CreateGroup(userID int, name string, description string, participantIDs []int) (*model.ConversationWithParticipant, error) {
 	// Check permission
 	canCreate, err := s.userRepo.CheckCanCreateGroup(userID)

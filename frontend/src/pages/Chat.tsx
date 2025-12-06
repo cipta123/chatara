@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { chatService, Message, Conversation, User } from '../services/chatService'
 import LeftSidebar from '../components/LeftSidebar'
 import Sidebar from '../components/Sidebar'
@@ -209,7 +210,18 @@ export default function Chat() {
     }
   }
 
-  const [activeNavItem, setActiveNavItem] = useState<'chats' | 'status' | 'communities' | 'calls' | 'settings'>('chats')
+  const [activeNavItem, setActiveNavItem] = useState<'chats' | 'status' | 'communities' | 'calls' | 'settings' | 'install'>('chats')
+  
+  // PWA Install hook
+  const { isInstallable, isInstalled, install } = usePWAInstall()
+  
+  const handleInstallClick = async () => {
+    const success = await install()
+    if (success) {
+      // Optionally show success message
+      console.log('App installed successfully!')
+    }
+  }
 
   if (loading) {
     return <div className="chat-loading">Loading...</div>
@@ -222,6 +234,9 @@ export default function Chat() {
         activeItem={activeNavItem} 
         onItemClick={setActiveNavItem}
         hideOnMobile={isMobile && showConversation}
+        onInstallClick={handleInstallClick}
+        isInstallable={isInstallable}
+        isInstalled={isInstalled}
       />
       <div className="chat-content-wrapper">
         {activeNavItem === 'chats' && (
@@ -338,6 +353,65 @@ export default function Chat() {
                 <div className="empty-icon">⚙️</div>
                 <h2>Settings</h2>
                 <p>Settings page coming soon</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeNavItem === 'install' && (
+          <div className="chat-main full-width">
+            <div className="chat-empty">
+              <div className="empty-illustration">
+                <div className="empty-icon">📱</div>
+                <h2>Install UMess</h2>
+                {isInstalled ? (
+                  <>
+                    <p style={{ color: '#00a884', marginTop: '16px' }}>✓ Aplikasi sudah terinstall!</p>
+                    <p style={{ marginTop: '8px', fontSize: '14px', color: '#8696a0' }}>
+                      Anda dapat mengakses UMess dari home screen perangkat Anda.
+                    </p>
+                  </>
+                ) : isInstallable ? (
+                  <>
+                    <p style={{ marginTop: '16px' }}>Install UMess untuk pengalaman yang lebih baik</p>
+                    <button
+                      onClick={handleInstallClick}
+                      style={{
+                        marginTop: '24px',
+                        padding: '12px 24px',
+                        backgroundColor: '#00a884',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#008f6f'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#00a884'}
+                    >
+                      Install Sekarang
+                    </button>
+                    <p style={{ marginTop: '16px', fontSize: '14px', color: '#8696a0' }}>
+                      Atau gunakan menu browser untuk "Add to Home screen"
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ marginTop: '16px' }}>Cara Install UMess:</p>
+                    <div style={{ marginTop: '24px', textAlign: 'left', maxWidth: '400px' }}>
+                      <ol style={{ paddingLeft: '20px', lineHeight: '2', fontSize: '14px', color: '#8696a0' }}>
+                        <li>Buka menu browser (3 titik di kanan atas)</li>
+                        <li>Pilih "Add to Home screen" atau "Install app"</li>
+                        <li>Konfirmasi instalasi</li>
+                        <li>Icon UMess akan muncul di home screen Anda</li>
+                      </ol>
+                    </div>
+                    <p style={{ marginTop: '24px', fontSize: '12px', color: '#8696a0' }}>
+                      Catatan: Install prompt otomatis akan muncul setelah beberapa kunjungan ke situs ini.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

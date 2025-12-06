@@ -194,11 +194,21 @@ func (h *MessageHandler) MarkAsRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MessageHandler) broadcastMessage(message *model.Message) {
-	// Get conversation participants
-	conversation, err := h.conversationService.GetConversation(message.ConversationID, message.SenderID)
+	// Get participants directly from repository to avoid authorization issues
+	participantIDs, err := h.conversationService.GetParticipantIDs(message.ConversationID)
 	if err != nil {
-		log.Printf("Failed to get conversation %d for broadcast: %v", message.ConversationID, err)
-		return // Failed to get conversation
+		log.Printf("Failed to get participants for conversation %d: %v", message.ConversationID, err)
+		// Fallback: try to get conversation with sender as userID
+		conversation, err2 := h.conversationService.GetConversation(message.ConversationID, message.SenderID)
+		if err2 != nil {
+			log.Printf("Failed to get conversation %d for broadcast: %v", message.ConversationID, err2)
+			return
+		}
+		// Extract participant IDs from conversation
+		participantIDs = make([]int, len(conversation.Participants))
+		for i, p := range conversation.Participants {
+			participantIDs[i] = p.ID
+		}
 	}
 
 	// Prepare message data
@@ -208,20 +218,24 @@ func (h *MessageHandler) broadcastMessage(message *model.Message) {
 	}
 
 	// Send to all participants EXCEPT sender (sender already gets response from API)
-	var participantIDs []int
-	for _, participant := range conversation.Participants {
-		if participant.ID != message.SenderID {
-			participantIDs = append(participantIDs, participant.ID)
+	var recipientIDs []int
+	for _, pid := range participantIDs {
+		if pid != message.SenderID {
+			recipientIDs = append(recipientIDs, pid)
 		}
 	}
 
 	log.Printf("Broadcasting message %d from user %d to %d other participants in conversation %d: %v", 
-		message.ID, message.SenderID, len(participantIDs), message.ConversationID, participantIDs)
+		message.ID, message.SenderID, len(recipientIDs), message.ConversationID, recipientIDs)
 
-	if len(participantIDs) > 0 {
-		err := h.hub.SendToUsers(participantIDs, msgData)
+	if len(recipientIDs) > 0 {
+		err := h.hub.SendToUsers(recipientIDs, msgData)
 		if err != nil {
 			log.Printf("Error broadcasting message: %v", err)
+		} else {
+			log.Printf("Successfully broadcasted message %d to users: %v", message.ID, recipientIDs)
 		}
+	} else {
+		log.Printf("Warning: No recipients found for message %d in conversation %d", message.ID, message.ConversationID)
 	}
 }

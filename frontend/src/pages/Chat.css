@@ -1,8 +1,13 @@
 .chat-container {
   display: flex;
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height - accounts for URL bar */
   background: #efeae2;
   position: relative;
+  overflow: hidden;
+  /* Prevent pull-to-refresh which shows URL bar */
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Mobile: Add padding bottom for bottom navigation */
@@ -42,6 +47,10 @@
   z-index: 100;
   width: 100vw;
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height */
+  overflow: hidden;
+  /* Prevent pull-to-refresh */
+  overscroll-behavior-y: none;
 }
 
 .chat-loading {
