@@ -207,13 +207,15 @@ func (h *MessageHandler) broadcastMessage(message *model.Message) {
 		"message": message,
 	}
 
-	// Send to ALL participants (including sender for confirmation)
+	// Send to all participants EXCEPT sender (sender already gets response from API)
 	var participantIDs []int
 	for _, participant := range conversation.Participants {
-		participantIDs = append(participantIDs, participant.ID)
+		if participant.ID != message.SenderID {
+			participantIDs = append(participantIDs, participant.ID)
+		}
 	}
 
-	log.Printf("Broadcasting message %d from user %d to %d participants in conversation %d: %v", 
+	log.Printf("Broadcasting message %d from user %d to %d other participants in conversation %d: %v", 
 		message.ID, message.SenderID, len(participantIDs), message.ConversationID, participantIDs)
 
 	if len(participantIDs) > 0 {

@@ -4,6 +4,15 @@ backend/.env
 backend/*.log
 backend/go.sum
 
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+umess-server
+umess-server.exe
+
 # Frontend
 frontend/node_modules/
 frontend/dist/
@@ -14,6 +23,7 @@ frontend/.env.local
 .idea/
 *.swp
 *.swo
+*.exe
 *~
 
 # OS
