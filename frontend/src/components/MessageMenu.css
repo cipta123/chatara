@@ -1,0 +1,75 @@
+.message-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: transparent;
+}
+
+.message-menu {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.12);
+  min-width: 180px;
+  z-index: 1001;
+  overflow: hidden;
+  animation: menuFadeIn 0.15s ease-out;
+  padding: 4px 0;
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.message-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: #111b21;
+  transition: background-color 0.15s;
+}
+
+.message-menu-item:hover {
+  background-color: #f5f6f6;
+}
+
+.message-menu-item-danger {
+  color: #d32f2f;
+}
+
+.message-menu-item-danger:hover {
+  background-color: #fee;
+  color: #c62828;
+}
+
+.menu-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #54656f;
+}
+
+.message-menu-item-danger .menu-icon {
+  color: #d32f2f;
+}
+

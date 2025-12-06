@@ -11,6 +11,8 @@ interface SidebarProps {
   currentUsername: string
   isConnected: boolean
   onNewChat: () => void
+  onNewGroup?: () => void
+  canCreateGroup?: boolean
   onLogout: () => void
 }
 
@@ -24,6 +26,8 @@ export default function Sidebar({
   currentUsername,
   isConnected,
   onNewChat,
+  onNewGroup,
+  canCreateGroup = false,
   onLogout,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -104,7 +108,9 @@ export default function Sidebar({
             </button>
             {showMenu && (
               <div className="dropdown-content">
-                <button onClick={() => {}}>New Group</button>
+                {canCreateGroup && onNewGroup && (
+                  <button onClick={onNewGroup}>New Group</button>
+                )}
                 <button onClick={() => {}}>Settings</button>
                 <button onClick={onLogout}>Logout</button>
               </div>

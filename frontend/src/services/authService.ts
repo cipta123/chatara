@@ -5,6 +5,7 @@ export interface User {
   username: string
   email: string
   avatar?: string
+  can_create_group?: boolean
   created_at: string
 }
 

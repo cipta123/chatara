@@ -85,15 +85,17 @@ func (h *MediaHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate URL (for development, use local path)
+	// Generate URL - return full URL that frontend can use
+	// Frontend will handle prepending API base URL if needed
 	mediaURL := fmt.Sprintf("/api/media/%s", filename)
 
 	response := map[string]interface{}{
-		"url":      mediaURL,
+		"url":       mediaURL,
 		"file_path": filePath,
 		"file_name": header.Filename,
 		"file_size": header.Size,
 		"mime_type": header.Header.Get("Content-Type"),
+		"filename":  filename, // Include filename for reference
 	}
 
 	utils.SendSuccess(w, "Image uploaded successfully", response)
@@ -119,13 +121,49 @@ func (h *MediaHandler) ServeMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath := filepath.Join(config.AppConfig.MediaStorage, filename)
+	// Ensure uploads directory exists
+	uploadDir := config.AppConfig.MediaStorage
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		utils.SendError(w, http.StatusInternalServerError, "Failed to access media storage")
+		return
+	}
+
+	filePath := filepath.Join(uploadDir, filename)
 
 	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	fileInfo, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
 		utils.SendError(w, http.StatusNotFound, "File not found")
 		return
 	}
+	if err != nil {
+		utils.SendError(w, http.StatusInternalServerError, "Failed to access file")
+		return
+	}
+	
+	// Ensure it's a file, not a directory
+	if fileInfo.IsDir() {
+		utils.SendError(w, http.StatusBadRequest, "Invalid file")
+		return
+	}
+
+	// Set content type based on file extension
+	ext := strings.ToLower(filepath.Ext(filename))
+	var contentType string
+	switch ext {
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".webp":
+		contentType = "image/webp"
+	default:
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
 
 	// Serve file
 	http.ServeFile(w, r, filePath)

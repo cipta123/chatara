@@ -6,9 +6,10 @@ type NavItem = 'chats' | 'status' | 'communities' | 'calls' | 'settings'
 interface LeftSidebarProps {
   activeItem?: NavItem
   onItemClick?: (item: NavItem) => void
+  hideOnMobile?: boolean
 }
 
-export default function LeftSidebar({ activeItem = 'chats', onItemClick }: LeftSidebarProps) {
+export default function LeftSidebar({ activeItem = 'chats', onItemClick, hideOnMobile = false }: LeftSidebarProps) {
   const [statusBadge, setStatusBadge] = useState(1) // Example: 1 unread status
 
   const navItems: { id: NavItem; icon: string; label: string; badge?: number }[] = [
@@ -20,7 +21,7 @@ export default function LeftSidebar({ activeItem = 'chats', onItemClick }: LeftS
   ]
 
   return (
-    <div className="left-sidebar">
+    <div className={`left-sidebar ${hideOnMobile ? 'hide-on-mobile' : ''}`}>
       {navItems.map((item) => (
         <button
           key={item.id}

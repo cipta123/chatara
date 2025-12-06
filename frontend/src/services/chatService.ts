@@ -7,6 +7,7 @@ export interface Message {
   content: string
   type: 'text' | 'image' | 'file'
   media_url?: string
+  reply_to_id?: number
   status: 'sent' | 'delivered' | 'read'
   created_at: string
   sender?: {
@@ -14,11 +15,14 @@ export interface Message {
     username: string
     avatar?: string
   }
+  reply_to?: Message
 }
 
 export interface Conversation {
   id: number
   type: string
+  name?: string
+  description?: string
   created_at: string
   updated_at: string
   participants: Array<{
@@ -26,6 +30,8 @@ export interface Conversation {
     username: string
     email: string
     avatar?: string
+    role?: string
+    can_create_group?: boolean
   }>
   last_message?: Message
   unread_count?: number
@@ -36,6 +42,7 @@ export interface SendMessageRequest {
   content: string
   type: 'text' | 'image' | 'file'
   media_url?: string
+  reply_to_id?: number
 }
 
 export const chatService = {
@@ -85,6 +92,10 @@ export const chatService = {
     await api.post(`/conversations/${conversationId}/read`)
   },
 
+  deleteMessage: async (conversationId: number, messageId: number): Promise<void> => {
+    await api.delete(`/conversations/${conversationId}/messages/${messageId}`)
+  },
+
   uploadImage: async (file: File): Promise<{ url: string; file_path: string }> => {
     const formData = new FormData()
     formData.append('image', file)
@@ -96,6 +107,31 @@ export const chatService = {
     })
     return response.data.data
   },
+
+  createGroup: async (name: string, description: string, participantIds: number[]): Promise<Conversation> => {
+    const response = await api.post('/conversations/group', {
+      name,
+      description,
+      participant_ids: participantIds,
+    })
+    return response.data.data
+  },
+
+  addGroupMember: async (conversationId: number, userId: number): Promise<void> => {
+    await api.post(`/conversations/${conversationId}/members`, { user_id: userId })
+  },
+
+  removeGroupMember: async (conversationId: number, userId: number): Promise<void> => {
+    await api.delete(`/conversations/${conversationId}/members/${userId}`)
+  },
+
+  leaveGroup: async (conversationId: number): Promise<void> => {
+    await api.post(`/conversations/${conversationId}/leave`)
+  },
+
+  updateGroupInfo: async (conversationId: number, name: string, description: string): Promise<void> => {
+    await api.put(`/conversations/${conversationId}/info`, { name, description })
+  },
 }
 
 export interface User {
@@ -103,6 +139,7 @@ export interface User {
   username: string
   email: string
   avatar?: string
+  can_create_group?: boolean
 }
 
 export const userService = {

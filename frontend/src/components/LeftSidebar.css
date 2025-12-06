@@ -111,6 +111,11 @@
     border-top: 1px solid #313d45;
     z-index: 999;
     background: #202c33;
+    transition: transform 0.3s ease-out;
+  }
+
+  .left-sidebar.hide-on-mobile {
+    transform: translateY(100%);
   }
 
   .left-sidebar-item {

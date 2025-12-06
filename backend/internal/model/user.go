@@ -5,13 +5,14 @@ import (
 )
 
 type User struct {
-	ID        int       `json:"id" db:"id"`
-	Username  string    `json:"username" db:"username"`
-	Email     string    `json:"email" db:"email"`
-	Password  string    `json:"-" db:"password"`
-	Avatar    string    `json:"avatar,omitempty" db:"avatar"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID            int       `json:"id" db:"id"`
+	Username      string    `json:"username" db:"username"`
+	Email         string    `json:"email" db:"email"`
+	Password      string    `json:"-" db:"password"`
+	Avatar        string    `json:"avatar,omitempty" db:"avatar"`
+	CanCreateGroup bool     `json:"can_create_group,omitempty" db:"can_create_group"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type RegisterRequest struct {

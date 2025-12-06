@@ -16,8 +16,8 @@ func NewMessageRepository() *MessageRepository {
 
 func (r *MessageRepository) Create(msg *model.Message) error {
 	query := `
-		INSERT INTO messages (conversation_id, sender_id, content, type, media_url, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		INSERT INTO messages (conversation_id, sender_id, content, type, media_url, reply_to_id, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		RETURNING id, created_at, updated_at
 	`
 	err := database.DB.QueryRow(
@@ -27,6 +27,7 @@ func (r *MessageRepository) Create(msg *model.Message) error {
 		msg.Content,
 		msg.Type,
 		msg.MediaURL,
+		msg.ReplyToID,
 		msg.Status,
 	).Scan(&msg.ID, &msg.CreatedAt, &msg.UpdatedAt)
 
@@ -35,10 +36,12 @@ func (r *MessageRepository) Create(msg *model.Message) error {
 
 func (r *MessageRepository) GetByID(id int) (*model.Message, error) {
 	msg := &model.Message{}
+	var replyToID sql.NullInt64
+	var deletedAt sql.NullTime
 	query := `
-		SELECT id, conversation_id, sender_id, content, type, media_url, status, created_at, updated_at
+		SELECT id, conversation_id, sender_id, content, type, media_url, reply_to_id, status, created_at, updated_at, deleted_at
 		FROM messages
-		WHERE id = $1
+		WHERE id = $1 AND deleted_at IS NULL
 	`
 	err := database.DB.QueryRow(query, id).Scan(
 		&msg.ID,
@@ -47,9 +50,11 @@ func (r *MessageRepository) GetByID(id int) (*model.Message, error) {
 		&msg.Content,
 		&msg.Type,
 		&msg.MediaURL,
+		&replyToID,
 		&msg.Status,
 		&msg.CreatedAt,
 		&msg.UpdatedAt,
+		&deletedAt,
 	)
 
 	if err != nil {
@@ -59,14 +64,19 @@ func (r *MessageRepository) GetByID(id int) (*model.Message, error) {
 		return nil, err
 	}
 
+	if replyToID.Valid {
+		replyID := int(replyToID.Int64)
+		msg.ReplyToID = &replyID
+	}
+
 	return msg, nil
 }
 
 func (r *MessageRepository) GetByConversation(conversationID int, limit, offset int) ([]*model.Message, error) {
 	query := `
-		SELECT id, conversation_id, sender_id, content, type, media_url, status, created_at, updated_at
+		SELECT id, conversation_id, sender_id, content, type, media_url, reply_to_id, status, created_at, updated_at, deleted_at
 		FROM messages
-		WHERE conversation_id = $1
+		WHERE conversation_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -79,6 +89,8 @@ func (r *MessageRepository) GetByConversation(conversationID int, limit, offset 
 	var messages []*model.Message
 	for rows.Next() {
 		msg := &model.Message{}
+		var replyToID sql.NullInt64
+		var deletedAt sql.NullTime
 		err := rows.Scan(
 			&msg.ID,
 			&msg.ConversationID,
@@ -86,12 +98,18 @@ func (r *MessageRepository) GetByConversation(conversationID int, limit, offset 
 			&msg.Content,
 			&msg.Type,
 			&msg.MediaURL,
+			&replyToID,
 			&msg.Status,
 			&msg.CreatedAt,
 			&msg.UpdatedAt,
+			&deletedAt,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if replyToID.Valid {
+			replyID := int(replyToID.Int64)
+			msg.ReplyToID = &replyID
 		}
 		messages = append(messages, msg)
 	}
@@ -106,10 +124,12 @@ func (r *MessageRepository) GetByConversation(conversationID int, limit, offset 
 
 func (r *MessageRepository) GetLastMessage(conversationID int) (*model.Message, error) {
 	msg := &model.Message{}
+	var replyToID sql.NullInt64
+	var deletedAt sql.NullTime
 	query := `
-		SELECT id, conversation_id, sender_id, content, type, media_url, status, created_at, updated_at
+		SELECT id, conversation_id, sender_id, content, type, media_url, reply_to_id, status, created_at, updated_at, deleted_at
 		FROM messages
-		WHERE conversation_id = $1
+		WHERE conversation_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
@@ -120,9 +140,11 @@ func (r *MessageRepository) GetLastMessage(conversationID int) (*model.Message, 
 		&msg.Content,
 		&msg.Type,
 		&msg.MediaURL,
+		&replyToID,
 		&msg.Status,
 		&msg.CreatedAt,
 		&msg.UpdatedAt,
+		&deletedAt,
 	)
 
 	if err != nil {
@@ -130,6 +152,11 @@ func (r *MessageRepository) GetLastMessage(conversationID int) (*model.Message, 
 			return nil, nil // No messages yet
 		}
 		return nil, err
+	}
+
+	if replyToID.Valid {
+		replyID := int(replyToID.Int64)
+		msg.ReplyToID = &replyID
 	}
 
 	return msg, nil
@@ -160,9 +187,34 @@ func (r *MessageRepository) MarkAsRead(conversationID int, userID int) error {
 		WHERE conversation_id = $1
 		AND sender_id != $2
 		AND status IN ('sent', 'delivered')
+		AND deleted_at IS NULL
 	`
 	_, err := database.DB.Exec(query, conversationID, userID)
 	return err
+}
+
+// Delete performs a soft delete by setting deleted_at timestamp
+func (r *MessageRepository) Delete(id int, userID int) error {
+	query := `
+		UPDATE messages
+		SET deleted_at = NOW(), updated_at = NOW()
+		WHERE id = $1 AND sender_id = $2 AND deleted_at IS NULL
+	`
+	result, err := database.DB.Exec(query, id, userID)
+	if err != nil {
+		return err
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	
+	if rowsAffected == 0 {
+		return errors.New("message not found or unauthorized")
+	}
+	
+	return nil
 }
 
 

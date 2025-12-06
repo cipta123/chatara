@@ -6,10 +6,22 @@ import LeftSidebar from '../components/LeftSidebar'
 import Sidebar from '../components/Sidebar'
 import ChatWindow from '../components/ChatWindow'
 import NewChatModal from '../components/NewChatModal'
+import CreateGroupModal from '../components/CreateGroupModal'
+import GroupInfoModal from '../components/GroupInfoModal'
 import './Chat.css'
 
 // WebSocket URL - must be full URL for direct connection
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
+// Auto-detect WebSocket URL based on current hostname
+const getWebSocketUrl = () => {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL
+  }
+  // Use current hostname and port 8080 for WebSocket (bypass proxy)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const hostname = window.location.hostname
+  return `${protocol}//${hostname}:8080/ws`
+}
+const WS_URL = getWebSocketUrl()
 
 export default function Chat() {
   const { user, logout } = useAuth()
@@ -18,6 +30,9 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewChatModal, setShowNewChatModal] = useState(false)
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
+  const [showGroupInfoModal, setShowGroupInfoModal] = useState(false)
+  const [canCreateGroup, setCanCreateGroup] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [showConversation, setShowConversation] = useState(false)
   const token = localStorage.getItem('token')
@@ -40,7 +55,19 @@ export default function Chat() {
   // Load conversations on mount
   useEffect(() => {
     loadConversations()
+    checkPermission()
   }, [])
+
+  const checkPermission = async () => {
+    // Check if current user has permission to create groups
+    // This is a simple check - in production, you'd fetch this from the backend
+    if (user?.email === 'ciptaanugrahh@gmail.com') {
+      setCanCreateGroup(true)
+    } else {
+      // Try to get permission from user object if available
+      setCanCreateGroup(user?.can_create_group || false)
+    }
+  }
 
   // WebSocket connection
   const { isConnected, sendMessage } = useWebSocket(
@@ -107,7 +134,7 @@ export default function Chat() {
     }
   }
 
-  const handleSendMessage = async (content: string, type: 'text' | 'image' = 'text', mediaUrl?: string) => {
+  const handleSendMessage = async (content: string, type: 'text' | 'image' = 'text', mediaUrl?: string, replyToId?: number) => {
     if (!selectedConversation) return
 
     try {
@@ -116,12 +143,17 @@ export default function Chat() {
         content,
         type,
         media_url: mediaUrl,
+        reply_to_id: replyToId,
       })
 
       setMessages((prev) => [...prev, newMessage])
     } catch (error) {
       console.error('Error sending message:', error)
     }
+  }
+
+  const handleMessagesChange = (updatedMessages: Message[]) => {
+    setMessages(updatedMessages)
   }
 
   const handleSelectConversation = (conversation: Conversation) => {
@@ -157,6 +189,26 @@ export default function Chat() {
     }
   }
 
+  const handleCreateGroup = async (conversation: Conversation) => {
+    // Reload conversations to get updated list
+    await loadConversations()
+    
+    // Set the newly created group as selected
+    setSelectedConversation(conversation)
+    
+    // Load messages for this conversation
+    loadMessages(conversation.id)
+  }
+
+  const handleGroupUpdated = async () => {
+    // Reload conversations and current conversation
+    await loadConversations()
+    if (selectedConversation) {
+      const updated = await chatService.getConversation(selectedConversation.id)
+      setSelectedConversation(updated)
+    }
+  }
+
   const [activeNavItem, setActiveNavItem] = useState<'chats' | 'status' | 'communities' | 'calls' | 'settings'>('chats')
 
   if (loading) {
@@ -166,7 +218,11 @@ export default function Chat() {
   return (
     <div className="chat-container">
       {/* Left sidebar - desktop only, bottom nav on mobile (handled by CSS) */}
-      <LeftSidebar activeItem={activeNavItem} onItemClick={setActiveNavItem} />
+      <LeftSidebar 
+        activeItem={activeNavItem} 
+        onItemClick={setActiveNavItem}
+        hideOnMobile={isMobile && showConversation}
+      />
       <div className="chat-content-wrapper">
         {activeNavItem === 'chats' && (
           <>
@@ -182,19 +238,23 @@ export default function Chat() {
                     currentUsername={user?.username || ''}
                     isConnected={isConnected}
                     onNewChat={() => setShowNewChatModal(true)}
+                    onNewGroup={canCreateGroup ? () => setShowCreateGroupModal(true) : undefined}
+                    canCreateGroup={canCreateGroup}
                     onLogout={logout}
                   />
                 )}
                 {showConversation && selectedConversation && (
                   <div className="chat-main mobile-fullscreen">
                     <ChatWindow
-                      conversation={selectedConversation}
-                      messages={messages}
-                      onSendMessage={handleSendMessage}
-                      currentUser={user!}
-                      onBack={handleBackToList}
-                      isMobile={isMobile}
-                    />
+                        conversation={selectedConversation}
+                        messages={messages}
+                        onSendMessage={handleSendMessage}
+                        currentUser={user!}
+                        onBack={handleBackToList}
+                        isMobile={isMobile}
+                        onMessagesChange={handleMessagesChange}
+                        onGroupInfoClick={selectedConversation.type === 'group' ? () => setShowGroupInfoModal(true) : undefined}
+                      />
                   </div>
                 )}
               </>
@@ -208,17 +268,21 @@ export default function Chat() {
                   currentUsername={user?.username || ''}
                   isConnected={isConnected}
                   onNewChat={() => setShowNewChatModal(true)}
+                  onNewGroup={canCreateGroup ? () => setShowCreateGroupModal(true) : undefined}
+                  canCreateGroup={canCreateGroup}
                   onLogout={logout}
                 />
                 <div className="chat-main">
                   {selectedConversation ? (
                     <ChatWindow
-                      conversation={selectedConversation}
-                      messages={messages}
-                      onSendMessage={handleSendMessage}
-                      currentUser={user!}
-                      isMobile={isMobile}
-                    />
+                        conversation={selectedConversation}
+                        messages={messages}
+                        onSendMessage={handleSendMessage}
+                        currentUser={user!}
+                        isMobile={isMobile}
+                        onMessagesChange={handleMessagesChange}
+                        onGroupInfoClick={selectedConversation.type === 'group' ? () => setShowGroupInfoModal(true) : undefined}
+                      />
                   ) : (
                     <div className="chat-empty">
                       <div className="empty-illustration">
@@ -284,6 +348,21 @@ export default function Chat() {
         onClose={() => setShowNewChatModal(false)}
         onSelectUser={handleStartChat}
         currentUserId={user?.id || 0}
+      />
+      {canCreateGroup && (
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          onCreateGroup={handleCreateGroup}
+          currentUserId={user?.id || 0}
+        />
+      )}
+      <GroupInfoModal
+        isOpen={showGroupInfoModal}
+        onClose={() => setShowGroupInfoModal(false)}
+        conversation={selectedConversation}
+        currentUserId={user?.id || 0}
+        onGroupUpdated={handleGroupUpdated}
       />
     </div>
   )

@@ -28,8 +28,21 @@ export default function ChatList({
       return otherParticipant || null
     }
     
+    // For groups, return null (we'll use group name instead)
+    if (conversation.type === 'group') {
+      return null
+    }
+    
     // Return first participant or null if none
     return participants[0] || null
+  }
+
+  const getDisplayName = (conversation: Conversation) => {
+    if (conversation.type === 'group') {
+      return conversation.name || 'Group'
+    }
+    const otherParticipant = getOtherParticipant(conversation)
+    return otherParticipant?.username || 'Unknown'
   }
 
   const formatTime = (dateString: string) => {
@@ -56,13 +69,19 @@ export default function ChatList({
       ) : (
         safeConversations
           .filter((conversation) => {
-            // Only show conversations with participants
+            // For groups, always show if they have participants
+            if (conversation.type === 'group') {
+              return Array.isArray(conversation.participants) && conversation.participants.length > 0
+            }
+            // For direct conversations, only show if there's another participant
             const otherParticipant = getOtherParticipant(conversation)
             return otherParticipant !== null
           })
           .map((conversation) => {
-            const otherParticipant = getOtherParticipant(conversation)
             const isSelected = selectedConversation?.id === conversation.id
+            const isGroup = conversation.type === 'group'
+            const displayName = getDisplayName(conversation)
+            const memberCount = isGroup ? (conversation.participants?.length || 0) : null
 
             return (
               <div
@@ -71,11 +90,11 @@ export default function ChatList({
                 onClick={() => onSelectConversation(conversation)}
               >
               <div className="chat-item-avatar">
-                {otherParticipant?.username?.charAt(0).toUpperCase() || 'U'}
+                {isGroup ? '👥' : (displayName.charAt(0).toUpperCase())}
               </div>
               <div className="chat-item-content">
                 <div className="chat-item-header">
-                  <div className="chat-item-name">{otherParticipant?.username || 'Unknown'}</div>
+                  <div className="chat-item-name">{displayName}</div>
                   {conversation.last_message && (
                     <div className="chat-item-time">
                       {formatTime(conversation.last_message.created_at)}
@@ -88,11 +107,18 @@ export default function ChatList({
                       {conversation.last_message.type === 'image' ? (
                         <span>📷 Image</span>
                       ) : (
-                        <span>{conversation.last_message.content}</span>
+                        <span>
+                          {isGroup && conversation.last_message.sender?.username
+                            ? `${conversation.last_message.sender.username}: `
+                            : ''}
+                          {conversation.last_message.content}
+                        </span>
                       )}
                     </>
                   ) : (
-                    <span className="chat-item-empty">Start a conversation</span>
+                    <span className="chat-item-empty">
+                      {isGroup ? `${memberCount} ${memberCount === 1 ? 'member' : 'members'}` : 'Start a conversation'}
+                    </span>
                   )}
                 </div>
               </div>

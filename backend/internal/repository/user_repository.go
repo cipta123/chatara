@@ -17,16 +17,17 @@ func NewUserRepository() *UserRepository {
 
 func (r *UserRepository) Create(user *model.User) error {
 	query := `
-		INSERT INTO users (username, email, password, created_at, updated_at)
-		VALUES ($1, $2, $3, NOW(), NOW())
-		RETURNING id, created_at, updated_at
+		INSERT INTO users (username, email, password, can_create_group, created_at, updated_at)
+		VALUES ($1, $2, $3, COALESCE($4, FALSE), NOW(), NOW())
+		RETURNING id, can_create_group, created_at, updated_at
 	`
 	err := database.DB.QueryRow(
 		query,
 		user.Username,
 		user.Email,
 		user.Password,
-	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+		user.CanCreateGroup,
+	).Scan(&user.ID, &user.CanCreateGroup, &user.CreatedAt, &user.UpdatedAt)
 
 	return err
 }
@@ -34,9 +35,10 @@ func (r *UserRepository) Create(user *model.User) error {
 func (r *UserRepository) GetByEmail(email string) (*model.User, error) {
 	user := &model.User{}
 	var avatar sql.NullString
+	var canCreateGroup sql.NullBool
 	// Use case-insensitive search
 	query := `
-		SELECT id, username, email, password, avatar, created_at, updated_at
+		SELECT id, username, email, password, avatar, can_create_group, created_at, updated_at
 		FROM users
 		WHERE LOWER(email) = LOWER($1)
 	`
@@ -46,12 +48,16 @@ func (r *UserRepository) GetByEmail(email string) (*model.User, error) {
 		&user.Email,
 		&user.Password,
 		&avatar,
+		&canCreateGroup,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 	
 	if avatar.Valid {
 		user.Avatar = avatar.String
+	}
+	if canCreateGroup.Valid {
+		user.CanCreateGroup = canCreateGroup.Bool
 	}
 
 	if err != nil {
@@ -67,8 +73,9 @@ func (r *UserRepository) GetByEmail(email string) (*model.User, error) {
 func (r *UserRepository) GetByID(id int) (*model.User, error) {
 	user := &model.User{}
 	var avatar sql.NullString
+	var canCreateGroup sql.NullBool
 	query := `
-		SELECT id, username, email, password, avatar, created_at, updated_at
+		SELECT id, username, email, password, avatar, can_create_group, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -78,12 +85,16 @@ func (r *UserRepository) GetByID(id int) (*model.User, error) {
 		&user.Email,
 		&user.Password,
 		&avatar,
+		&canCreateGroup,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 	
 	if avatar.Valid {
 		user.Avatar = avatar.String
+	}
+	if canCreateGroup.Valid {
+		user.CanCreateGroup = canCreateGroup.Bool
 	}
 
 	if err != nil {
@@ -103,7 +114,7 @@ func (r *UserRepository) GetByIDs(ids []int) ([]*model.User, error) {
 
 	// Build query with IN clause for better compatibility
 	query := `
-		SELECT id, username, email, avatar, created_at, updated_at
+		SELECT id, username, email, avatar, can_create_group, created_at, updated_at
 		FROM users
 		WHERE id = ANY($1::int[])
 	`
@@ -117,11 +128,13 @@ func (r *UserRepository) GetByIDs(ids []int) ([]*model.User, error) {
 	for rows.Next() {
 		user := &model.User{}
 		var avatar sql.NullString
+		var canCreateGroup sql.NullBool
 		err := rows.Scan(
 			&user.ID,
 			&user.Username,
 			&user.Email,
 			&avatar,
+			&canCreateGroup,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -131,6 +144,9 @@ func (r *UserRepository) GetByIDs(ids []int) ([]*model.User, error) {
 		if avatar.Valid {
 			user.Avatar = avatar.String
 		}
+		if canCreateGroup.Valid {
+			user.CanCreateGroup = canCreateGroup.Bool
+		}
 		users = append(users, user)
 	}
 
@@ -139,7 +155,7 @@ func (r *UserRepository) GetByIDs(ids []int) ([]*model.User, error) {
 
 func (r *UserRepository) SearchUsers(query string, excludeUserID int, limit int) ([]*model.User, error) {
 	searchQuery := `
-		SELECT id, username, email, avatar, created_at, updated_at
+		SELECT id, username, email, avatar, can_create_group, created_at, updated_at
 		FROM users
 		WHERE id != $1
 		AND (LOWER(username) LIKE LOWER($2) OR LOWER(email) LIKE LOWER($2))
@@ -168,11 +184,13 @@ func (r *UserRepository) SearchUsers(query string, excludeUserID int, limit int)
 	for rows.Next() {
 		user := &model.User{}
 		var avatar sql.NullString
+		var canCreateGroup sql.NullBool
 		err := rows.Scan(
 			&user.ID,
 			&user.Username,
 			&user.Email,
 			&avatar,
+			&canCreateGroup,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -181,6 +199,9 @@ func (r *UserRepository) SearchUsers(query string, excludeUserID int, limit int)
 		}
 		if avatar.Valid {
 			user.Avatar = avatar.String
+		}
+		if canCreateGroup.Valid {
+			user.CanCreateGroup = canCreateGroup.Bool
 		}
 		users = append(users, user)
 	}
@@ -192,4 +213,17 @@ func (r *UserRepository) UpdateAvatar(userID int, avatar string) error {
 	query := `UPDATE users SET avatar = $1, updated_at = NOW() WHERE id = $2`
 	_, err := database.DB.Exec(query, avatar, userID)
 	return err
+}
+
+func (r *UserRepository) CheckCanCreateGroup(userID int) (bool, error) {
+	var canCreateGroup bool
+	query := `SELECT can_create_group FROM users WHERE id = $1`
+	err := database.DB.QueryRow(query, userID).Scan(&canCreateGroup)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, errors.New("user not found")
+		}
+		return false, err
+	}
+	return canCreateGroup, nil
 }
