@@ -1,0 +1,152 @@
+.left-sidebar {
+  width: 72px;
+  background: #202c33;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  border-right: 1px solid #313d45;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.left-sidebar-item {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 12px;
+  margin: 4px 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  position: relative;
+  color: #8696a0;
+}
+
+.left-sidebar-item:hover {
+  background-color: #313d45;
+}
+
+.left-sidebar-item.active {
+  background-color: #2a3942;
+  color: #00a884;
+}
+
+.left-sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 40px;
+  background-color: #00a884;
+  border-radius: 0 2px 2px 0;
+}
+
+.left-sidebar-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.left-sidebar-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #25d366;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.2;
+  border: 2px solid #202c33;
+}
+
+/* Status icon special styling */
+.left-sidebar-item.active .left-sidebar-icon svg circle:last-child {
+  fill: #00a884;
+}
+
+/* Scrollbar styling */
+.left-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.left-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.left-sidebar::-webkit-scrollbar-thumb {
+  background: #8696a0;
+  border-radius: 2px;
+}
+
+.left-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #00a884;
+}
+
+/* Mobile: Convert to bottom navigation bar */
+@media (max-width: 767px) {
+  .left-sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    border-right: none;
+    border-top: 1px solid #313d45;
+    z-index: 999;
+    background: #202c33;
+  }
+
+  .left-sidebar-item {
+    width: auto;
+    flex: 1;
+    max-width: 80px;
+    margin: 0;
+    padding: 8px 4px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .left-sidebar-item.active::before {
+    display: none;
+  }
+
+  .left-sidebar-item.active {
+    background-color: transparent;
+    color: #00a884;
+  }
+
+  .left-sidebar-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 3px;
+    background-color: #00a884;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .left-sidebar-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+

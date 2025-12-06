@@ -11,6 +11,8 @@ interface ChatWindowProps {
   messages: Message[]
   onSendMessage: (content: string, type?: 'text' | 'image', mediaUrl?: string) => void
   currentUser: User
+  onBack?: () => void
+  isMobile?: boolean
 }
 
 export default function ChatWindow({
@@ -18,6 +20,8 @@ export default function ChatWindow({
   messages,
   onSendMessage,
   currentUser,
+  onBack,
+  isMobile = false,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isTyping, setIsTyping] = useState(false)
@@ -69,6 +73,19 @@ export default function ChatWindow({
   return (
     <div className="chat-window">
       <div className="chat-window-header">
+        {isMobile && onBack && (
+          <button className="chat-back-button" onClick={onBack} aria-label="Back to chat list">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M19 12H5M5 12L12 19M5 12L12 5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
         <div className="chat-window-user">
           <div className="chat-window-avatar">
             {otherParticipant?.username?.charAt(0).toUpperCase() || 'U'}

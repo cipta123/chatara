@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { chatService, Message, Conversation, User } from '../services/chatService'
-import ChatList from '../components/ChatList'
+import LeftSidebar from '../components/LeftSidebar'
+import Sidebar from '../components/Sidebar'
 import ChatWindow from '../components/ChatWindow'
 import NewChatModal from '../components/NewChatModal'
 import './Chat.css'
@@ -17,7 +18,24 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewChatModal, setShowNewChatModal] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [showConversation, setShowConversation] = useState(false)
   const token = localStorage.getItem('token')
+
+  // Detect mobile view
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      // On mobile, if screen gets bigger, show conversation if one is selected
+      if (!mobile && selectedConversation) {
+        setShowConversation(false)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [selectedConversation])
 
   // Load conversations on mount
   useEffect(() => {
@@ -109,6 +127,14 @@ export default function Chat() {
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation)
     loadMessages(conversation.id)
+    // On mobile, show conversation screen
+    if (isMobile) {
+      setShowConversation(true)
+    }
+  }
+
+  const handleBackToList = () => {
+    setShowConversation(false)
   }
 
   const handleStartChat = async (selectedUser: User) => {
@@ -131,49 +157,126 @@ export default function Chat() {
     }
   }
 
+  const [activeNavItem, setActiveNavItem] = useState<'chats' | 'status' | 'communities' | 'calls' | 'settings'>('chats')
+
   if (loading) {
     return <div className="chat-loading">Loading...</div>
   }
 
   return (
     <div className="chat-container">
-      <div className="chat-sidebar">
-        <div className="chat-header">
-          <div className="user-info">
-            <div className="user-avatar">
-              {user?.username?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div>
-              <div className="user-name">{user?.username}</div>
-              <div className="user-status">{isConnected ? 'Online' : 'Offline'}</div>
+      {/* Left sidebar - desktop only, bottom nav on mobile (handled by CSS) */}
+      <LeftSidebar activeItem={activeNavItem} onItemClick={setActiveNavItem} />
+      <div className="chat-content-wrapper">
+        {activeNavItem === 'chats' && (
+          <>
+            {/* On mobile: show either chat list OR conversation, not both */}
+            {isMobile ? (
+              <>
+                {!showConversation && (
+                  <Sidebar
+                    conversations={conversations}
+                    selectedConversation={selectedConversation}
+                    onSelectConversation={handleSelectConversation}
+                    currentUserId={user?.id || 0}
+                    currentUsername={user?.username || ''}
+                    isConnected={isConnected}
+                    onNewChat={() => setShowNewChatModal(true)}
+                    onLogout={logout}
+                  />
+                )}
+                {showConversation && selectedConversation && (
+                  <div className="chat-main mobile-fullscreen">
+                    <ChatWindow
+                      conversation={selectedConversation}
+                      messages={messages}
+                      onSendMessage={handleSendMessage}
+                      currentUser={user!}
+                      onBack={handleBackToList}
+                      isMobile={isMobile}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Sidebar
+                  conversations={conversations}
+                  selectedConversation={selectedConversation}
+                  onSelectConversation={handleSelectConversation}
+                  currentUserId={user?.id || 0}
+                  currentUsername={user?.username || ''}
+                  isConnected={isConnected}
+                  onNewChat={() => setShowNewChatModal(true)}
+                  onLogout={logout}
+                />
+                <div className="chat-main">
+                  {selectedConversation ? (
+                    <ChatWindow
+                      conversation={selectedConversation}
+                      messages={messages}
+                      onSendMessage={handleSendMessage}
+                      currentUser={user!}
+                      isMobile={isMobile}
+                    />
+                  ) : (
+                    <div className="chat-empty">
+                      <div className="empty-illustration">
+                        <div className="empty-icon">💬</div>
+                        <h2>UMess</h2>
+                        <p>Select a conversation to start chatting</p>
+                        <p className="empty-subtitle">Your personal messages are end-to-end encrypted</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+        {activeNavItem === 'status' && (
+          <div className="chat-main full-width">
+            <div className="chat-empty">
+              <div className="empty-illustration">
+                <div className="empty-icon">⚪</div>
+                <h2>Status</h2>
+                <p>Status updates coming soon</p>
+              </div>
             </div>
           </div>
-          <div className="header-actions">
-            <button onClick={() => setShowNewChatModal(true)} className="new-chat-button" title="New Chat">
-              +
-            </button>
-            <button onClick={logout} className="logout-button">
-              Logout
-            </button>
+        )}
+        {activeNavItem === 'communities' && (
+          <div className="chat-main full-width">
+            <div className="chat-empty">
+              <div className="empty-illustration">
+                <div className="empty-icon">👥</div>
+                <h2>Communities</h2>
+                <p>Communities feature coming soon</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <ChatList
-          conversations={conversations}
-          selectedConversation={selectedConversation}
-          onSelectConversation={handleSelectConversation}
-          currentUserId={user?.id || 0}
-        />
-      </div>
-      <div className="chat-main">
-        {selectedConversation ? (
-          <ChatWindow
-            conversation={selectedConversation}
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            currentUser={user!}
-          />
-        ) : (
-          <div className="chat-empty">Select a conversation to start chatting</div>
+        )}
+        {activeNavItem === 'calls' && (
+          <div className="chat-main full-width">
+            <div className="chat-empty">
+              <div className="empty-illustration">
+                <div className="empty-icon">📞</div>
+                <h2>Calls</h2>
+                <p>Voice and video calls coming soon</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeNavItem === 'settings' && (
+          <div className="chat-main full-width">
+            <div className="chat-empty">
+              <div className="empty-illustration">
+                <div className="empty-icon">⚙️</div>
+                <h2>Settings</h2>
+                <p>Settings page coming soon</p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
       <NewChatModal

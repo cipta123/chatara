@@ -82,4 +82,25 @@
   color: #999;
 }
 
+/* Mobile optimizations */
+@media (max-width: 767px) {
+  .chat-item {
+    padding: 14px 15px;
+    min-height: 72px;
+  }
+
+  .chat-item-avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 20px;
+  }
+
+  .chat-item-name {
+    font-size: 16px;
+  }
+
+  .chat-item-preview {
+    font-size: 14px;
+  }
+}
 
